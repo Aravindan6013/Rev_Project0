@@ -11,3 +11,13 @@ def extract_data(customer_file, transactions_file):
         transactions_data = json.load(file)
     print("Data extraction completed.")
     return customers_data, transactions_data
+
+
+# Function to transform data if needed
+def transform_data(customers_data, transactions_data):
+    print("Transforming data...")
+    # Example transformation: converting price from integer to float
+    for transaction in transactions_data:
+        transaction['price'] = float(transaction['price'])
+    print("Data transformation completed.")
+    return customers_data, transactions_data
