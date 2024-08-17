@@ -1,0 +1,13 @@
+import json
+import mysql.connector
+from mysql.connector import Error
+
+# Function to extract data from JSON files
+def extract_data(customer_file, transactions_file):
+    print("Extracting data from JSON files...")
+    with open(customer_file, 'r') as file:
+        customers_data = json.load(file)
+    with open(transactions_file, 'r') as file:
+        transactions_data = json.load(file)
+    print("Data extraction completed.")
+    return customers_data, transactions_data
