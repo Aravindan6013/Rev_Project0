@@ -21,3 +21,140 @@ def transform_data(customers_data, transactions_data):
         transaction['price'] = float(transaction['price'])
     print("Data transformation completed.")
     return customers_data, transactions_data
+
+# Function to load data into MySQL with normalization
+def load_data(customers_data, transactions_data):
+    connection = None
+    try:
+        print("Connecting to the MySQL database...")
+        # Connect to MySQL database
+        connection = mysql.connector.connect(
+            host='localhost',
+            database='Rev_project0',
+            user='root',
+            password='Aruvi7302#'
+        )
+
+        if connection.is_connected():
+            print("Connection established.")
+            cursor = connection.cursor()
+
+            # Create normalized tables if not exists
+            print("Creating tables if they do not exist...")
+            cursor.execute('''CREATE TABLE IF NOT EXISTS customers (
+                                customer_id INT PRIMARY KEY,
+                                customer_name VARCHAR(255),
+                                country VARCHAR(255),
+                                city VARCHAR(255)
+                              )''')
+
+            cursor.execute('''CREATE TABLE IF NOT EXISTS products (
+                                product_id INT PRIMARY KEY,
+                                product_name VARCHAR(255),
+                                product_category VARCHAR(255)
+                              )''')
+
+            cursor.execute('''CREATE TABLE IF NOT EXISTS orders (
+                                order_id INT PRIMARY KEY,
+                                customer_id INT,
+                                product_id INT,
+                                datetime DATETIME,
+                                qty INT,
+                                price FLOAT,
+                                ecommerce_website_name VARCHAR(255),
+                                FOREIGN KEY (customer_id) REFERENCES customers(customer_id),
+                                FOREIGN KEY (product_id) REFERENCES products(product_id)
+                              )''')
+
+            cursor.execute('''CREATE TABLE IF NOT EXISTS payments (
+                                payment_txn_id VARCHAR(255) PRIMARY KEY,
+                                order_id INT,
+                                payment_type VARCHAR(50),
+                                payment_txn_success CHAR(1),
+                                failure_reason VARCHAR(255),
+                                FOREIGN KEY (order_id) REFERENCES orders(order_id)
+                              )''')
+            print("Tables created or confirmed.")
+
+            # Load customers data
+            print("Inserting customer data...")
+            for customer in customers_data:
+                cursor.execute('''INSERT INTO customers (customer_id, customer_name, country, city)
+                                  VALUES (%s, %s, %s, %s)
+                                  ON DUPLICATE KEY UPDATE
+                                  customer_name=VALUES(customer_name),
+                                  country=VALUES(country),
+                                  city=VALUES(city)''',
+                               (customer['customer_id'], customer['customer_name'],
+                                customer['country'], customer['city']))
+            print("Customer data inserted.")
+
+            # Load transactions data
+            print("Inserting transactions data...")
+            for transaction in transactions_data:
+                # Insert product data
+                cursor.execute('''INSERT INTO products (product_id, product_name, product_category)
+                                  VALUES (%s, %s, %s)
+                                  ON DUPLICATE KEY UPDATE
+                                  product_name=VALUES(product_name),
+                                  product_category=VALUES(product_category)''',
+                               (transaction['product_id'], transaction['product_name'],
+                                transaction['product_category']))
+
+                # Insert order data
+                cursor.execute('''INSERT INTO orders (order_id, customer_id, product_id, datetime, qty, price, ecommerce_website_name)
+                                  VALUES (%s, %s, %s, %s, %s, %s, %s)
+                                  ON DUPLICATE KEY UPDATE
+                                  datetime=VALUES(datetime),
+                                  qty=VALUES(qty),
+                                  price=VALUES(price),
+                                  ecommerce_website_name=VALUES(ecommerce_website_name)''',
+                               (transaction['order_id'], transaction['customer_id'],
+                                transaction['product_id'], transaction['datetime'],
+                                transaction['qty'], transaction['price'],
+                                transaction['ecommerce_website_name']))
+
+                # Insert payment data
+                cursor.execute('''INSERT INTO payments (payment_txn_id, order_id, payment_type, payment_txn_success, failure_reason)
+                                  VALUES (%s, %s, %s, %s, %s)
+                                  ON DUPLICATE KEY UPDATE
+                                  payment_type=VALUES(payment_type),
+                                  payment_txn_success=VALUES(payment_txn_success),
+                                  failure_reason=VALUES(failure_reason)''',
+                               (transaction['payment_txn_id'], transaction['order_id'],
+                                transaction['payment_type'], transaction['payment_txn_success'],
+                                transaction['failure_reason']))
+
+            connection.commit()
+            print("Transactions data inserted.")
+            print("Data loading completed.")
+            
+            print("\nFetching and displaying data from tables...\n")
+
+            tables = ['customers', 'products', 'orders', 'payments']
+            for table in tables:
+                print(f"Table: {table}")
+                cursor.execute(f"SELECT * FROM {table} limit 10")
+                rows = cursor.fetchall()
+                for row in rows:
+                    print(row)
+                print("\n")
+
+    except Error as e:
+        print(f"Error: {e}")
+    finally:
+        if connection and connection.is_connected():
+            cursor.close()
+            connection.close()
+            print("Connection closed.")
+
+if __name__ == '__main__':
+    # File paths for JSON files
+    customer_file = 'customers.json'
+    transactions_file = 'transaction_logs.json'
+
+    # ETL Process
+    customers_data, transactions_data = extract_data(customer_file, transactions_file)
+    customers_data, transactions_data = transform_data(customers_data, transactions_data)
+    load_data(customers_data, transactions_data)
+
