@@ -32,7 +32,7 @@ def load_data(customers_data, transactions_data):
             host='localhost',
             database='Rev_project0',
             user='root',
-            password='Aruvi7302#'
+            password='******'
         )
 
         if connection.is_connected():
